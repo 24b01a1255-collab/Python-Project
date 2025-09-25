@@ -223,6 +223,72 @@ def generate_report():
             writer.writeheader()
             writer.writerows(students)
         print(f"Report exported to {filename}")
+def bulk_import():
+    file_path = input("Enter the path of the CSV file to import: ").strip()
+
+    if not os.path.exists(file_path):
+        print("File not found. Please check the path.")
+        return
+
+    imported_count = 0
+    skipped_count = 0
+    errors = []
+
+    with open(file_path, "r") as infile, open(CSV_FILE, "a", newline="") as outfile:
+        reader = csv.DictReader(infile)
+        writer = csv.writer(outfile)
+
+        # Get existing roll numbers to prevent duplicates
+        existing_rolls = set()
+        with open(CSV_FILE, "r") as f:
+            existing_reader = csv.DictReader(f)
+            for row in existing_reader:
+                existing_rolls.add(int(row["Roll.No"]))
+
+        for i, row in enumerate(reader, start=2):  # start=2 because line 1 is header
+            try:
+                roll_no = int(row["Roll.No"])
+                if roll_no in existing_rolls:
+                    errors.append((i, "Duplicate Roll.No"))
+                    skipped_count += 1
+                    continue
+
+                name = row["Name"].strip()
+                branch = row["Branch"].strip()
+                year = row["Year"].strip()
+                gender = row["Gender"].strip().upper()
+                age = int(row["Age"])
+                attendance = float(row["Attendance_%"])
+                mid1 = float(row["Mid1_Marks"])
+                mid2 = float(row["Mid2_Marks"])
+                quiz = float(row["Quiz_Marks"])
+                final = float(row["Final_Marks"])
+
+                if not (0 <= attendance <= 100):
+                    errors.append((i, "Invalid Attendance"))
+                    skipped_count += 1
+                    continue
+
+                # Add student to master CSV
+                writer.writerow([roll_no, name, branch, year, gender, age,
+                                 attendance, mid1, mid2, quiz, final])
+                existing_rolls.add(roll_no)
+                imported_count += 1
+
+            except Exception as e:
+                errors.append((i, str(e)))
+                skipped_count += 1
+
+    # Save errors to import_errors.csv
+    if errors:
+        error_file = os.path.join(os.path.dirname(CSV_FILE), "import_errors.csv")
+        with open(error_file, "w", newline="") as ef:
+            ew = csv.writer(ef)
+            ew.writerow(["Line", "Error"])
+            ew.writerows(errors)
+        print(f"Errors logged to {error_file}")
+
+    print(f"Bulk Import Completed: {imported_count} records imported, {skipped_count} skipped.")
 if __name__ == "__main__":
     while True:
         print("\n--- Student Management ---")
@@ -231,7 +297,8 @@ if __name__ == "__main__":
         print("3. Update Student (UC3)")
         print("4. Delete Student (UC4)")
         print("5. Generate Report (UC5)")
-        print("6. Exit")
+        print("6. Bulk Import (UC6)")
+        print("7. Exit")
         choice = input("Enter choice: ")
 
         if choice == "1":
@@ -245,6 +312,8 @@ if __name__ == "__main__":
         elif choice == "5":
             generate_report()
         elif choice == "6":
+            bulk_import()
+        elif choice == "7":
             print("Exiting...")
             break
         else:

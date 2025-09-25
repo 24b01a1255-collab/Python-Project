@@ -166,17 +166,63 @@ def delete_student():
         if not found:
             print("Student with this Roll_No not found.")
             return
-
-        # Save updated list back to main CSV
         with open(CSV_FILE, "w", newline="") as file:
             fieldnames = ["Roll.No", "Name", "Branch", "Year", "Gender", "Age",
                           "Attendance_%", "Mid_Marks", "Mid2_Marks", "Quiz_Marks", "Final_Marks"]
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(students)
+def generate_report():
+    branch = input("Enter Branch: ").strip()
+    year = input("Enter Year: ").strip()
 
-    except ValueError:
-        print("Invalid input. Roll_No must be a number.")
+    students = []
+    with open(CSV_FILE, "r") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            if row["Branch"].lower() == branch.lower() and row["Year"] == year:
+                try:
+                    row["Final_Marks"] = float(row["Final_Marks"])
+                except ValueError:
+                    row["Final_Marks"] = 0.0
+                students.append(row)
+
+    if not students:
+        print("No students found for given branch/year.")
+        return
+
+    total_students = len(students)
+    avg_marks = sum(s["Final_Marks"] for s in students) / total_students
+    highest = max(students, key=lambda x: x["Final_Marks"])
+    lowest = min(students, key=lambda x: x["Final_Marks"])
+    grades = {"A": 0, "B": 0, "C": 0, "D": 0}
+    for s in students:
+        marks = s["Final_Marks"]
+        if marks >= 75:
+            grades["A"] += 1
+        elif marks >= 60:
+            grades["B"] += 1
+        elif marks >= 40:
+            grades["C"] += 1
+        else:
+            grades["D"] += 1
+    print("\n--- Report ---")
+    print(f"Branch: {branch}, Year: {year}")
+    print(f"Total Students: {total_students}")
+    print(f"Average Marks: {avg_marks:.2f}")
+    print(f"Highest Scorer: {highest['Name']} ({highest['Final_Marks']})")
+    print(f"Lowest Scorer: {lowest['Name']} ({lowest['Final_Marks']})")
+    print("Grade Distribution:", grades)
+    export = input("Export report to CSV? (Y/N): ").strip().upper()
+    if export == "Y":
+        filename = f"report_{branch}_{year}.csv"
+        with open(filename, "w", newline="") as file:
+            fieldnames = ["Roll.No", "Name", "Branch", "Year", "Gender", "Age",
+                          "Attendance_%", "Mid_Marks", "Mid2_Marks", "Quiz_Marks", "Final_Marks"]
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(students)
+        print(f"Report exported to {filename}")
 if __name__ == "__main__":
     while True:
         print("\n--- Student Management ---")
@@ -184,7 +230,8 @@ if __name__ == "__main__":
         print("2. Search Student (UC2)")
         print("3. Update Student (UC3)")
         print("4. Delete Student (UC4)")
-        print("5. Exit")
+        print("5. Generate Report (UC5)")
+        print("6. Exit")
         choice = input("Enter choice: ")
 
         if choice == "1":
@@ -196,6 +243,8 @@ if __name__ == "__main__":
         elif choice == "4":
             delete_student()
         elif choice == "5":
+            generate_report()
+        elif choice == "6":
             print("Exiting...")
             break
         else:
